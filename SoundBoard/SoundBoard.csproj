@@ -10,7 +10,7 @@
 
   <!-- Version und Datum werden in Statusleiste und "Über" angezeigt -->
   <PropertyGroup>
-    <Version>1.1.0</Version>
+    <Version>1.2.0</Version>
     <ReleaseDate>18.10.2026</ReleaseDate>
     <Product>SoundBoard</Product>
     <!-- Bewusst kein <Company>: der Firmenname bestimmt den Ordner der Benutzereinstellungen
