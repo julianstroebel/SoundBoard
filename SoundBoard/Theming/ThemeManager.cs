@@ -68,6 +68,15 @@ namespace SoundBoard
                     panel.BackColor = panel.Parent?.BackColor ?? t.Back;
                     break;
 
+                case LinkLabel linkLabel:
+                    linkLabel.BackColor = Color.Transparent;
+                    linkLabel.ForeColor = t.Text;
+                    linkLabel.LinkColor = t.Accent;
+                    linkLabel.ActiveLinkColor = t.AccentPressed;
+                    linkLabel.VisitedLinkColor = t.Accent;
+                    linkLabel.LinkBehavior = LinkBehavior.HoverUnderline;
+                    break;
+
                 case MutedLabel mutedLabel:
                     mutedLabel.BackColor = Color.Transparent;
                     mutedLabel.ForeColor = t.TextMuted;

@@ -169,7 +169,7 @@
             //
             toolStripStatusLabel1.Name = "toolStripStatusLabel1";
             toolStripStatusLabel1.Size = new Size(182, 17);
-            toolStripStatusLabel1.Text = "Version 1.0 - Ströbel Eventtechnik";
+            toolStripStatusLabel1.Text = "Version 1.1 - Ströbel Eventtechnik";
             //
             // lbl_editmode
             //

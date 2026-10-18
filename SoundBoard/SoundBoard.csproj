@@ -8,6 +8,19 @@
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
 
+  <!-- Version und Datum werden in Statusleiste und "Über" angezeigt -->
+  <PropertyGroup>
+    <Version>1.1.0</Version>
+    <ReleaseDate>18.10.2026</ReleaseDate>
+    <Product>SoundBoard</Product>
+    <!-- Bewusst kein <Company>: der Firmenname bestimmt den Ordner der Benutzereinstellungen
+         (%LOCALAPPDATA%\<Company>\...), ein neuer Name würde die bisherigen Einstellungen verlieren -->
+  </PropertyGroup>
+
+  <ItemGroup>
+    <AssemblyMetadata Include="ReleaseDate" Value="$(ReleaseDate)" />
+  </ItemGroup>
+
   <ItemGroup>
     <PackageReference Include="NAudio" Version="2.2.1" />
   </ItemGroup>

@@ -70,5 +70,17 @@ namespace SoundBoard.Properties {
                 this["volume"] = value;
             }
         }
+
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("True")]
+        public bool upgraderequired {
+            get {
+                return ((bool)(this["upgraderequired"]));
+            }
+            set {
+                this["upgraderequired"] = value;
+            }
+        }
     }
 }

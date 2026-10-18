@@ -21,6 +21,7 @@ namespace SoundBoard
             pads = [button1, button2, button3, button4, button5, button6, button7, button8,
                     button9, button10, button11, button12, button13, button14, button15, button16];
             player.PlaybackStopped += player_PlaybackStopped;
+            toolStripStatusLabel1.Text = $"Version {AppInfo.Version} - {AppInfo.Company}";
 
             // Nach InitializeComponent erstellen, damit der UI-SynchronizationContext existiert
             midi = new MidiService();
@@ -126,9 +127,9 @@ namespace SoundBoard
 
         private void btn_about_Click(object sender, EventArgs e)
         {
-            fAbout form_about = new fAbout();
+            using var form_about = new fAbout();
             ThemeManager.Apply(form_about);
-            form_about.ShowDialog();
+            form_about.ShowDialog(this);
         }
 
         #region Soundbuttons
