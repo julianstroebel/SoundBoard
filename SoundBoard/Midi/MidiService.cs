@@ -23,6 +23,7 @@ namespace SoundBoard
 
         private readonly SynchronizationContext context;
         private readonly List<MidiIn> inputs = new();
+        private readonly List<MidiOut> outputs = new();
         private Action<MidiTrigger>? learnCallback;
 
         public MidiService()
@@ -37,9 +38,20 @@ namespace SoundBoard
 
         public event EventHandler? StatusChanged;
 
+        /// <summary>
+        ///  Irgendeine Taste/Regler am Gerät wurde betätigt oder losgelassen (auch Note Off, Wert 0
+        ///  und während des Anlernens). Wird u.a. genutzt, um LED-Farben neu zu senden.
+        /// </summary>
+        public event EventHandler? ActivityReceived;
+
         public string Selection { get; private set; } = "";
         public string Status { get; private set; } = "MIDI: aus";
         public bool IsOpen => inputs.Count > 0;
+
+        /// <summary>
+        ///  Zu den geöffneten Eingängen wurde mindestens ein passender MIDI-Ausgang gefunden (für LED-Feedback).
+        /// </summary>
+        public bool CanSend => outputs.Count > 0;
         public bool IsLearning => learnCallback != null;
 
         public static List<MidiDeviceItem> GetDeviceItems()
@@ -98,6 +110,32 @@ namespace SoundBoard
                 }
             }
 
+            // Ausgang desselben Geräts für LED-Feedback öffnen. Windows benennt ihn meist gleich wie den
+            // Eingang; weitere Ports heißen z.B. "MIDIOUT2 (Gerät)" und werden nur genutzt, wenn es keinen
+            // gleichnamigen Ausgang gibt.
+            var outputNames = Enumerable.Range(0, MidiOut.NumberOfDevices).Select(i => MidiOut.DeviceInfo(i).ProductName).ToList();
+            foreach (string input in opened.Distinct())
+            {
+                List<int> matches = outputNames.Select((name, index) => (name, index)).Where(o => o.name == input).Select(o => o.index).ToList();
+                if (matches.Count == 0)
+                {
+                    matches = outputNames.Select((name, index) => (name, index))
+                        .Where(o => o.name.Contains(input, StringComparison.OrdinalIgnoreCase)).Select(o => o.index).ToList();
+                }
+
+                foreach (int index in matches)
+                {
+                    try
+                    {
+                        outputs.Add(new MidiOut(index));
+                    }
+                    catch (Exception ex)
+                    {
+                        errors.Add($"{outputNames[index]} (Ausgang): {ex.Message}");
+                    }
+                }
+            }
+
             string status = opened.Count > 0
                 ? "MIDI: " + string.Join(", ", opened)
                 : selection == AllDevices ? "MIDI: kein Gerät gefunden" : $"MIDI: „{selection}“ nicht gefunden";
@@ -106,6 +144,25 @@ namespace SoundBoard
                 status += " – Fehler bei " + string.Join("; ", errors);
             }
             setStatus(status);
+        }
+
+        /// <summary>
+        ///  Sendet Note On an alle geöffneten Ausgänge (Kanal 1–16).
+        /// </summary>
+        public void SendNoteOn(int channel, int note, int velocity)
+        {
+            int message = MidiMessage.StartNote(note, velocity, channel).RawData;
+            foreach (MidiOut output in outputs)
+            {
+                try
+                {
+                    output.Send(message);
+                }
+                catch (Exception)
+                {
+                    // Gerät evtl. abgezogen; beim nächsten Öffnen wird neu verbunden
+                }
+            }
         }
 
         /// <summary>
@@ -138,6 +195,11 @@ namespace SoundBoard
             if (trigger != null)
             {
                 context.Post(_ => dispatch(trigger), null);
+            }
+
+            if (e.MidiEvent is NoteEvent or ControlChangeEvent or PatchChangeEvent)
+            {
+                context.Post(_ => ActivityReceived?.Invoke(this, EventArgs.Empty), null);
             }
         }
 
@@ -175,6 +237,12 @@ namespace SoundBoard
                 input.Dispose();
             }
             inputs.Clear();
+
+            foreach (MidiOut output in outputs)
+            {
+                output.Dispose();
+            }
+            outputs.Clear();
         }
 
         public void Dispose()
@@ -182,6 +250,7 @@ namespace SoundBoard
             learnCallback = null;
             TriggerReceived = null;
             StatusChanged = null;
+            ActivityReceived = null;
             close();
         }
     }

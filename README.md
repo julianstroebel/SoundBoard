@@ -97,6 +97,18 @@ Ohne weitere Einrichtung nutzt SoundBoard die Windows-Stimmen. Für eine wesentl
 
 Unterstützt werden **Note On**, **Control Change** und **Program Change** auf allen 16 Kanälen. Jeder MIDI-Befehl gehört immer zu genau einer Aktion – wird er neu vergeben, fragt SoundBoard nach und entfernt ihn an der alten Stelle.
 
+### 💡 LED-Farben am Controller (MIDICRAFT)
+
+Bei [MIDICRAFT](https://www.midicraft.de)-Controllern wie dem **PUSH²** leuchten die Pads in der Farbe des jeweiligen Buttons:
+
+- belegter Button → Button-Farbe, **weiß** während der Wiedergabe
+- leerer Button → aus
+- Wiedergabe STOP → rot
+
+Einschalten unter *Einstellungen → LED-Farben am Controller → MIDICRAFT*. Am Controller muss für die betreffenden Pads unter **Feedback → set Source** „Midi“ eingestellt sein – die Einstellung gilt pro Pad.
+
+MIDICRAFT-Geräte nehmen keine RGB-Werte an, sondern eine Farbpalette per Velocity (1–48 Vollfarben, 49–96 Pastellfarben, 97 Weiß). SoundBoard wählt daraus automatisch den nächstliegenden Farbton. Farben funktionieren nur für Buttons, die auf eine **Note** angelernt sind. Mit **Jetzt senden** werden alle Farben sofort übertragen und angezeigt, was gesendet wurde.
+
 ---
 
 ## 💾 Wo werden Daten gespeichert?

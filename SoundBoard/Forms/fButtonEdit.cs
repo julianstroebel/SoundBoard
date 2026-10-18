@@ -121,6 +121,11 @@
         private void updateMidi()
         {
             lbl_miditrigger.Text = cfg.Midi?.ToString() ?? (midi.IsOpen ? "Nicht belegt" : "Nicht belegt – zuerst unter Datei › Einstellungen ein MIDI-Gerät wählen");
+            if (cfg.Midi != null && cfg.Midi.Type != MidiMessageType.Note && Properties.Settings.Default.ledfeedback != "")
+            {
+                // LED-Feedback läuft über Note On auf derselben Note
+                lbl_miditrigger.Text += " – LED-Farbe nur bei Noten möglich";
+            }
             btn_midilearn.Enabled = midi.IsOpen || midi.IsLearning;
             btn_midiclear.Enabled = cfg.Midi != null;
         }

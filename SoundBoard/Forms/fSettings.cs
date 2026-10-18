@@ -12,8 +12,21 @@ namespace SoundBoard
         private readonly AudioPlayer player;
         private readonly MidiService midi;
         private readonly Action saveConfig;
+        private readonly Action updateLeds;
+        private readonly Func<string> sendAllLeds;
 
-        internal fSettings(AppConfig config, IReadOnlyList<ITtsVoice> voices, AudioPlayer player, MidiService midi, Action saveConfig)
+        /// <summary>
+        ///  Auswahl für die LED-Farbsteuerung.
+        /// </summary>
+        private sealed record LedModeItem(string Key, string Name)
+        {
+            public override string ToString() => Name;
+        }
+
+        /// <param name="updateLeds">Sendet geänderte LED-Farben an den Controller.</param>
+        /// <param name="sendAllLeds">Sendet alle LED-Farben neu und beschreibt, was gesendet wurde.</param>
+        internal fSettings(AppConfig config, IReadOnlyList<ITtsVoice> voices, AudioPlayer player, MidiService midi, Action saveConfig,
+            Action updateLeds, Func<string> sendAllLeds)
         {
             InitializeComponent();
 
@@ -21,6 +34,16 @@ namespace SoundBoard
             this.player = player;
             this.midi = midi;
             this.saveConfig = saveConfig;
+            this.updateLeds = updateLeds;
+            this.sendAllLeds = sendAllLeds;
+
+            LedModeItem[] ledModes =
+            [
+                new("", "Aus"),
+                new(fMain.LedModeMidicraft, "MIDICRAFT (z.B. PUSH²) – Farbpalette per Velocity")
+            ];
+            cmb_ledmode.Items.AddRange(ledModes);
+            cmb_ledmode.SelectedItem = ledModes.FirstOrDefault(m => m.Key == Settings.Default.ledfeedback) ?? ledModes[0];
 
             cmb_voice.DisplayMember = nameof(ITtsVoice.DisplayName);
             if (voices.Count == 0)
@@ -104,9 +127,29 @@ namespace SoundBoard
 
         private void midi_StatusChanged(object? sender, EventArgs e) => updateMidiStatus();
 
+        private void btn_ledsend_Click(object? sender, EventArgs e)
+        {
+            lbl_ledhint.Text = sendAllLeds();
+        }
+
+        private void cmb_ledmode_SelectionChangeCommitted(object? sender, EventArgs e)
+        {
+            if (cmb_ledmode.SelectedItem is LedModeItem mode)
+            {
+                Settings.Default.ledfeedback = mode.Key;
+                Settings.Default.Save();
+                updateLeds();
+                updateMidiStatus();
+            }
+        }
+
         private void updateMidiStatus()
         {
             lbl_midistatus.Text = midi.Status;
+            if (midi.IsOpen && Settings.Default.ledfeedback != "" && !midi.CanSend)
+            {
+                lbl_midistatus.Text += " – kein MIDI-Ausgang für LED-Farben gefunden";
+            }
             btn_stoplearn.Enabled = midi.IsOpen;
         }
 
@@ -146,6 +189,7 @@ namespace SoundBoard
             config.StopMidi = trigger;
             saveConfig();
             updateStopTrigger();
+            updateLeds();
         }
 
         private void stopLearning()
@@ -161,6 +205,7 @@ namespace SoundBoard
             config.StopMidi = null;
             saveConfig();
             updateStopTrigger();
+            updateLeds();
         }
 
         #endregion

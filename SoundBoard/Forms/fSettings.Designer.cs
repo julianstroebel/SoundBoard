@@ -43,6 +43,10 @@ namespace SoundBoard
             lbl_stoptrigger = new MutedLabel();
             btn_stoplearn = new ModernButton();
             btn_stopclear = new ModernButton();
+            lbl_ledcaption = new Label();
+            cmb_ledmode = new ModernComboBox();
+            lbl_ledhint = new MutedLabel();
+            btn_ledsend = new ModernButton();
             btn_close = new ModernButton();
             cardPlayback.SuspendLayout();
             cardMidi.SuspendLayout();
@@ -116,9 +120,13 @@ namespace SoundBoard
             cardMidi.Controls.Add(lbl_stoptrigger);
             cardMidi.Controls.Add(btn_stoplearn);
             cardMidi.Controls.Add(btn_stopclear);
+            cardMidi.Controls.Add(lbl_ledcaption);
+            cardMidi.Controls.Add(cmb_ledmode);
+            cardMidi.Controls.Add(lbl_ledhint);
+            cardMidi.Controls.Add(btn_ledsend);
             cardMidi.Location = new Point(12, 184);
             cardMidi.Name = "cardMidi";
-            cardMidi.Size = new Size(536, 196);
+            cardMidi.Size = new Size(536, 290);
             cardMidi.TabIndex = 1;
             cardMidi.TabStop = false;
             cardMidi.Text = "MIDI";
@@ -197,10 +205,45 @@ namespace SoundBoard
             btn_stopclear.UseVisualStyleBackColor = true;
             btn_stopclear.Click += btn_stopclear_Click;
             //
+            // lbl_ledcaption
+            //
+            lbl_ledcaption.AutoSize = true;
+            lbl_ledcaption.Location = new Point(16, 188);
+            lbl_ledcaption.Name = "lbl_ledcaption";
+            lbl_ledcaption.Size = new Size(150, 15);
+            lbl_ledcaption.TabIndex = 8;
+            lbl_ledcaption.Text = "LED-Farben am Controller";
+            //
+            // cmb_ledmode
+            //
+            cmb_ledmode.Location = new Point(16, 210);
+            cmb_ledmode.Name = "cmb_ledmode";
+            cmb_ledmode.Size = new Size(372, 28);
+            cmb_ledmode.TabIndex = 9;
+            cmb_ledmode.SelectionChangeCommitted += cmb_ledmode_SelectionChangeCommitted;
+            //
+            // btn_ledsend
+            //
+            btn_ledsend.Location = new Point(396, 208);
+            btn_ledsend.Name = "btn_ledsend";
+            btn_ledsend.Size = new Size(124, 32);
+            btn_ledsend.TabIndex = 11;
+            btn_ledsend.Text = "Jetzt senden";
+            btn_ledsend.UseVisualStyleBackColor = true;
+            btn_ledsend.Click += btn_ledsend_Click;
+            //
+            // lbl_ledhint
+            //
+            lbl_ledhint.Location = new Point(16, 246);
+            lbl_ledhint.Name = "lbl_ledhint";
+            lbl_ledhint.Size = new Size(504, 34);
+            lbl_ledhint.TabIndex = 10;
+            lbl_ledhint.Text = "Pads leuchten in der Button-Farbe, weiß während der Wiedergabe. Am Controller unter Feedback › set Source „Midi“ wählen.";
+            //
             // btn_close
             //
             btn_close.DialogResult = DialogResult.Cancel;
-            btn_close.Location = new Point(444, 392);
+            btn_close.Location = new Point(444, 486);
             btn_close.Name = "btn_close";
             btn_close.Size = new Size(104, 32);
             btn_close.TabIndex = 2;
@@ -214,7 +257,7 @@ namespace SoundBoard
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             CancelButton = btn_close;
-            ClientSize = new Size(560, 436);
+            ClientSize = new Size(560, 530);
             Controls.Add(cardPlayback);
             Controls.Add(cardMidi);
             Controls.Add(btn_close);
@@ -250,6 +293,10 @@ namespace SoundBoard
         private MutedLabel lbl_stoptrigger;
         private ModernButton btn_stoplearn;
         private ModernButton btn_stopclear;
+        private Label lbl_ledcaption;
+        private ModernComboBox cmb_ledmode;
+        private MutedLabel lbl_ledhint;
+        private ModernButton btn_ledsend;
         private ModernButton btn_close;
     }
 }

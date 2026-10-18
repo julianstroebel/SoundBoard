@@ -14,6 +14,17 @@ namespace SoundBoard
         private ModernButton? activePad;
         private fTts? ttsWindow;
 
+        /// <summary>
+        ///  Zuletzt an den Controller gesendete LED-Velocity pro (Kanal, Note).
+        /// </summary>
+        private Dictionary<(int channel, int note), int> ledState = new();
+
+        /// <summary>
+        ///  Sendet nach einem Tastendruck alle LED-Farben neu, kurz verzögert, damit sie nach der
+        ///  geräteeigenen LED-Reaktion ankommen. Mehrere Tastendrücke hintereinander werden zusammengefasst.
+        /// </summary>
+        private readonly System.Windows.Forms.Timer ledRefreshTimer = new() { Interval = 40 };
+
         public fMain()
         {
             InitializeComponent();
@@ -27,6 +38,8 @@ namespace SoundBoard
             midi = new MidiService();
             midi.TriggerReceived += midi_TriggerReceived;
             midi.StatusChanged += midi_StatusChanged;
+            midi.ActivityReceived += midi_ActivityReceived;
+            ledRefreshTimer.Tick += ledRefreshTimer_Tick;
         }
 
         bool editmode = false;
@@ -49,6 +62,8 @@ namespace SoundBoard
         private void fMain_FormClosing(object sender, FormClosingEventArgs e)
         {
             ttsCts?.Cancel();
+            ledRefreshTimer.Dispose();
+            clearLeds();
             midi.Dispose();
             player.Dispose();
             Settings.Default.Save();
@@ -120,9 +135,10 @@ namespace SoundBoard
 
         private void btn_einstellungen_Click(object sender, EventArgs e)
         {
-            using var form_settings = new fSettings(config, voices, player, midi, saveConfig);
+            using var form_settings = new fSettings(config, voices, player, midi, saveConfig, updateLeds, sendAllLeds);
             ThemeManager.Apply(form_settings);
             form_settings.ShowDialog(this);
+            updateLeds();
         }
 
         private void btn_about_Click(object sender, EventArgs e)
@@ -155,6 +171,8 @@ namespace SoundBoard
 
         private void btnClicker(int id)
         {
+            scheduleLedRefresh();
+
             if (editmode)
             {
                 editButton(id);
@@ -192,6 +210,7 @@ namespace SoundBoard
             saveConfig();
             applyButton(id);
             setStatus($"Button {id} gespeichert.");
+            updateLeds();
         }
 
         private void playSound(int id)
@@ -250,6 +269,7 @@ namespace SoundBoard
             {
                 pad.IsActive = true;
             }
+            updateLeds();
         }
 
         private void player_PlaybackStopped(object? sender, EventArgs e)
@@ -291,6 +311,138 @@ namespace SoundBoard
         private void midi_StatusChanged(object? sender, EventArgs e)
         {
             lbl_midi.Text = midi.Status;
+
+            // Neues Gerät bzw. neu verbunden: alle LEDs sofort und zur Sicherheit kurz darauf nochmal
+            // senden, da manche USB-Geräte Nachrichten direkt nach dem Öffnen verwerfen
+            ledState.Clear();
+            updateLeds();
+            scheduleLedRefresh(750);
+        }
+
+        #endregion
+
+        #region LED-Feedback
+
+        /// <summary>
+        ///  Wert der Einstellung "ledfeedback" für MIDICRAFT-Controller.
+        /// </summary>
+        internal const string LedModeMidicraft = "midicraft";
+
+        /// <summary>
+        ///  Farbe für belegte Buttons ohne eigene Farbe.
+        /// </summary>
+        private static readonly Color defaultLedColor = ColorTranslator.FromHtml("#3B6CF6");
+
+        /// <summary>
+        ///  Bringt die LEDs am Controller auf den aktuellen Stand: Button-Farbe, weiß während der Wiedergabe,
+        ///  aus für leere Buttons, rot für "Wiedergabe STOP". Gesendet wird nur, was sich geändert hat.
+        /// </summary>
+        private void updateLeds()
+        {
+            var wanted = new Dictionary<(int channel, int note), int>();
+            if (Settings.Default.ledfeedback == LedModeMidicraft && midi.CanSend)
+            {
+                for (int id = 1; id <= AppConfig.ButtonCount; id++)
+                {
+                    ButtonConfig cfg = config.Buttons[id - 1];
+                    if (cfg.Midi is { Type: MidiMessageType.Note } trigger)
+                    {
+                        wanted[(trigger.Channel, trigger.Number)] = ledVelocity(cfg, pads[id - 1]);
+                    }
+                }
+
+                if (config.StopMidi is { Type: MidiMessageType.Note } stop)
+                {
+                    wanted[(stop.Channel, stop.Number)] = MidicraftPalette.FromColor(ThemeManager.Current.Danger);
+                }
+            }
+
+            // Nicht mehr benötigte LEDs ausschalten (z.B. nach Umbelegen oder Abschalten des Feedbacks)
+            foreach ((int channel, int note) key in ledState.Keys.Except(wanted.Keys))
+            {
+                midi.SendNoteOn(key.channel, key.note, MidicraftPalette.Off);
+            }
+            foreach (KeyValuePair<(int channel, int note), int> led in wanted)
+            {
+                if (!ledState.TryGetValue(led.Key, out int sent) || sent != led.Value)
+                {
+                    midi.SendNoteOn(led.Key.channel, led.Key.note, led.Value);
+                }
+            }
+            ledState = wanted;
+        }
+
+        /// <summary>
+        ///  Alle LED-Farben nach <paramref name="delayMs"/> vollständig neu senden.
+        /// </summary>
+        private void scheduleLedRefresh(int delayMs = 40)
+        {
+            ledRefreshTimer.Stop();
+            ledRefreshTimer.Interval = delayMs;
+            ledRefreshTimer.Start();
+        }
+
+        private void midi_ActivityReceived(object? sender, EventArgs e)
+        {
+            scheduleLedRefresh();
+        }
+
+        private void ledRefreshTimer_Tick(object? sender, EventArgs e)
+        {
+            ledRefreshTimer.Stop();
+            sendAllLeds();
+        }
+
+        /// <summary>
+        ///  Sendet sofort alle LED-Farben neu und beschreibt, was gesendet wurde (für die Einstellungen).
+        /// </summary>
+        private string sendAllLeds()
+        {
+            // Gemerkten Stand verwerfen, damit wirklich jede Taste neu gesendet wird
+            ledState.Clear();
+            updateLeds();
+
+            if (Settings.Default.ledfeedback != LedModeMidicraft)
+            {
+                return "LED-Farben sind ausgeschaltet.";
+            }
+            if (!midi.CanSend)
+            {
+                return "Nichts gesendet – kein MIDI-Ausgang verbunden.";
+            }
+            if (ledState.Count == 0)
+            {
+                return "Nichts gesendet – kein Button und kein STOP ist auf eine Note angelernt.";
+            }
+            return "Gesendet um " + DateTime.Now.ToString("HH:mm:ss") + ": " + string.Join(", ",
+                ledState.OrderBy(l => l.Key.channel).ThenBy(l => l.Key.note)
+                    .Select(l => $"Kanal {l.Key.channel} Note {l.Key.note} → {l.Value}"));
+        }
+
+        private int ledVelocity(ButtonConfig cfg, ModernButton pad)
+        {
+            if (cfg.Action == ButtonAction.None)
+            {
+                return MidicraftPalette.Off;
+            }
+            if (pad == activePad)
+            {
+                return MidicraftPalette.White;
+            }
+            Color color = cfg.GetColor();
+            return MidicraftPalette.FromColor(color.IsEmpty ? defaultLedColor : color);
+        }
+
+        /// <summary>
+        ///  Schaltet alle zuletzt gesetzten LEDs aus (beim Beenden).
+        /// </summary>
+        private void clearLeds()
+        {
+            foreach ((int channel, int note) key in ledState.Keys)
+            {
+                midi.SendNoteOn(key.channel, key.note, MidicraftPalette.Off);
+            }
+            ledState.Clear();
         }
 
         #endregion
@@ -407,6 +559,7 @@ namespace SoundBoard
             saveConfig();
             applyButton(id);
             setStatus($"Text liegt jetzt auf Button {id}.");
+            updateLeds();
         }
 
         #endregion
